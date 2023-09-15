@@ -1,0 +1,120 @@
+version: '3'
+
+volumes:
+  postgres_data:
+      driver: local
+  mysql_data:
+      driver: local
+
+services:
+
+  
+  postgres:
+      image: postgres
+      volumes:
+        - postgres_data:/var/lib/postgresql/data
+      ports:
+      - 5432:5432
+      command: postgres -c  'max_connections=1000'
+      environment:
+        TZ: America/Bogota
+        POSTGRES_DB: keycloak
+        POSTGRES_USER: keycloak
+        POSTGRES_PASSWORD: password
+      networks:
+        - net-matrix
+      hostname: postgres
+
+  consul:
+    image: 'consul:1.9.6'
+    ports:
+      - "8500:8500"
+    environment:
+      CONSUL_BIND_INTERFACE: lo
+    logging:
+      driver: json-file
+      options:
+        max-size: 10k
+    networks:
+      - net-matrix
+    hostname: consul
+
+  
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:19.0.0
+    volumes:
+      - ./imports:/opt/jboss/keycloak/imports
+      - ./keycloak/realms/export:/tmp/export
+    command:
+      - "-Djboss.http.port=9090"
+      - "start-dev --http-port=9090"
+      - "-Dkeycloak.import=/opt/jboss/keycloak/imports/realm-export.json"
+    ports:
+      - "9090:9090"
+    environment:
+      - TZ=America/Bogota
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - KC_DB_POOL_INITIAL_SIZE=1000
+      - KC_DB_POOL_MAX_SIZE=1000
+      - KC_HEALTH_ENABLED=true
+      - KC_DB=postgres
+      - KC_DB_URL=jdbc:postgresql://postgres/keycloak
+      - KC_DB_USERNAME=keycloak
+      - KC_DB_PASSWORD=password
+    networks:
+      - net-matrix
+    hostname: keycloak
+    depends_on:
+        - postgres
+
+  mongodb:
+    image: mongo:5.0
+    ports:
+      - 27017:27017
+    volumes:
+      - ~/apps/mongo:/data/db
+    networks:
+      - net-matrix
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=
+      - MONGO_INITDB_ROOT_PASSWORD=
+    hostname: mongodb
+
+
+
+  flask-app:
+    build: 
+      context: ../pyservice
+      dockerfile: ../pyservice/Dockerfile
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongodb
+      - consul
+    networks:
+      - net-matrix  
+    hostname: flask-app  
+    
+    
+    
+  apigateway-app:
+    build:
+      context: ../apigateway
+      dockerfile: Dockerfile
+      args:
+        JAR_FILE: target/api-gateway-0.0.1-SNAPSHOT.jar
+    ports:
+      - "8081:8081"    
+    environment:
+      - SPRING_CLOUD_CONSUL_HOST=consul    
+      - URL=http://keycloak:9090/realms/mycompany-microservices-realm/protocol/openid-connect/token
+    networks:
+      - net-matrix  
+    hostname: apigateway-app          
+        
+        
+
+networks:
+  net-matrix:
