@@ -1,0 +1,34 @@
+server:
+  port: 8081
+  ssl:
+    key-alias: apigateway_key
+    key-store: classpath:apigateway_key.p12
+    key-store-type: PKCS12
+    key-store-password: password
+
+AES256_SALT: jw9Bu7rs8KXyhfk77fXiG2at1ivWrcVOjoT3ttyUmwA=
+AES256_SECRET_KEY: 034fa9badce4ed139b7f12d932044c82faef96f467e8f2d5d5fcd509aaf13063
+AES256_SALT_BODY: rVIu/2Uks6i4S4c7fBrRNcaK2tLl92DYKV1ZxgBLYrE=
+AES256_SECRET_KEY_BODY: acb39d81a90ad5cae907af65b37fab25e8b00d62a396985b28805d6572d1f575
+
+url: http://keycloak:9090/realms/mycompany-microservices-realm/protocol/openid-connect/token
+clientId: spring-cloud-gateway-client
+grantType: password
+clientSecret: 0859426e-bb03-451d-be15-5e41c4240e1c
+spring:
+  main:
+    web-application-type: reactive
+    allow-bean-definition-overriding: true
+
+    consul:
+      discovery:
+        scheme: https
+        health-check-path: /actuator/health
+        health-check-tls-skip-verify: true
+        health-check-interval: 30s
+        fail-fast: true
+        queryPassing: true
+      host: consul
+      port: 8500
+  application:
+    name: ms-api-gateway
